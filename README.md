@@ -23,3 +23,9 @@ Kurulumdan sonra **Ayarlar → Uygulamalar → Varsayılan uygulamalar** ekranı
 - [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/about.html) · AGPL veya ticari lisans
 - [CPython](https://docs.python.org/3.13/license.html) · Python Software Foundation lisansı
 - [Tesseract dil modelleri](https://github.com/tesseract-ocr/tessdata_fast/tree/4.1.0) · Apache 2.0
+
+## Lisans ve kaynak kod
+
+TugbayReader, [GNU Affero General Public License 3.0](LICENSE) ile dağıtılır.
+
+Windows paketinin kaynak koduna ve PDF motorunun kaynak arşivine aynı [GitHub Releases](https://github.com/mertdmrc8/TugbayReader/releases) sayfasından erişebilirsiniz. Paket, PyMuPDF ve MuPDF 1.28.2 ile CPython 3.13.17 kullanır. Kurucuyu yeniden oluşturma komutu yukarıda verilmiştir.

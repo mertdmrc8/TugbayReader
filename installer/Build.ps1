@@ -13,7 +13,7 @@ Expand-Archive -LiteralPath $pythonArchive -DestinationPath $runtime.FullName
 python -m pip install --only-binary=:all: --no-deps --platform win_amd64 --implementation cp --python-version 3.13 --abi cp313 --target $runtime.FullName 'PyMuPDF==1.28.2'
 if ($LASTEXITCODE -ne 0) { throw 'PDF motoru yüklenemedi.' }
 
-$files = 'app.py', 'app.js', 'index.html', 'style.css', 'TugbayReader.cmd', 'TugbayReader.ico', 'TugbayReader.png', 'tessdata'
+$files = 'app.py', 'app.js', 'index.html', 'style.css', 'TugbayReader.cmd', 'TugbayReader.ico', 'TugbayReader.png', 'tessdata', 'LICENSE', 'README.md'
 foreach ($file in $files) {
     Copy-Item -LiteralPath (Join-Path $root $file) -Destination $payload.FullName -Recurse
 }
