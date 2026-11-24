@@ -944,6 +944,21 @@ if (location.protocol === "file:") {
   for (const element of document.body.children) element.hidden = true;
   get("launchHelp").hidden = false;
 } else {
+  fetch("/startup").then(response => response.json()).then(state => {
+    if (busy || count) return;
+    if (state.error) {
+      notify(state.error, true);
+      return;
+    }
+    if (!state.count) return;
+    filename = state.name;
+    count = state.count;
+    canUndo = state.undo;
+    canRedo = state.redo;
+    loadThumbnails();
+    loadFrames(state.ratios);
+    loadPage();
+  }).catch(() => {});
   window.setTimeout(async () => {
     try {
       const response = await fetch("/update");

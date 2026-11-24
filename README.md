@@ -16,6 +16,8 @@ Python 3.10 veya üstünü kurun. Ardından `TugbayReader.cmd` dosyasına çift 
 
 Uygulama açılışta bu deponun GitHub Releases sayfasını kontrol eder. Yeni kararlı sürümde Windows kurucusu varsa kullanıcıya sürüm bağlantısını gösterir.
 
+Kurulumdan sonra **Ayarlar → Uygulamalar → Varsayılan uygulamalar** ekranında `.pdf` uzantısını arayın ve **TugbayReader**'ı seçin. PDF dosyasına çift tıkladığınızda belge düzenleyicide açılır.
+
 ## Bağımlılıklar
 
 - [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/about.html) · AGPL veya ticari lisans

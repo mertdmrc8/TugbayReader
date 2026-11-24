@@ -23,7 +23,7 @@ MAX_EDIT_REQUEST = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 HISTORY_LIMIT = 10
 COMPRESSION_PRESETS = {"high": (200, 82), "medium": (150, 67), "low": (96, 45)}
-APP_VERSION = (14, 1, 2)
+APP_VERSION = (14, 1, 3)
 RELEASE_REPOSITORY = "mertdmrc8/TugbayReader"
 INSTALLER_NAME = "TugbayReader-Kurulum.exe"
 
@@ -191,9 +191,20 @@ class Editor:
             self.replace(path)
         else:
             self.modify_document(index, action, args)
+        return self.state()
+
+    def state(self):
         with self.document() as doc:
             return {"count": len(doc), "undo": bool(self.undo_stack), "redo": bool(self.redo_stack),
                     "ratios": [page.rect.width / page.rect.height for page in doc]}
+
+    def open_local(self, source):
+        with source.open("rb") as stream:
+            token = self.receive(stream, source.stat().st_size)
+        try:
+            self.apply("open", {"token": token})
+        finally:
+            self.discard_upload(token)
 
     def add_pdf_pages(self, index, insert_after, args):
         sources = args["files"]
@@ -495,6 +506,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_reply(self.server.editor.search(query[:200]))
             elif path == "/update":
                 self.json_reply({"available": self.server.update})
+            elif path == "/startup":
+                state = self.server.startup.copy()
+                if state.get("name"):
+                    state.update(self.server.editor.state())
+                self.json_reply(state)
             elif path == "/pdf":
                 if self.server.editor.data is None:
                     self.json_reply({"error": "Önce bir PDF açın."}, 404)
@@ -567,6 +583,13 @@ def run_server(args, session=None):
     with TemporaryDirectory(prefix="TugbayReader-") as directory, ReaderServer(("127.0.0.1", args.port), Handler) as server:
         server.editor = Editor(directory)
         server.update = None
+        server.startup = {}
+        if args.file is not None:
+            try:
+                server.editor.open_local(args.file)
+                server.startup = {"name": args.file.name}
+            except (OSError, ValueError, RuntimeError):
+                server.startup = {"error": f"{args.file.name} açılamadı. Geçerli, şifresiz bir PDF seçin."}
         if not args.no_browser:
             Thread(target=check_for_update, args=(server,), daemon=True).start()
         url = f"http://127.0.0.1:{server.server_port}"
@@ -611,8 +634,9 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--desktop", action="store_true")
+    parser.add_argument("--file", type=Path)
     args = parser.parse_args()
-    if args.desktop:
+    if args.desktop and args.file is None:
         run_desktop(args)
     else:
         run_server(args)

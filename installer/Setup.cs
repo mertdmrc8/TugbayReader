@@ -3,10 +3,48 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 static class Setup
 {
+    [DllImport("shell32.dll")]
+    static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
+
+    static void RegisterPdfHandler(string runtime, string app, string icon)
+    {
+        const string progId = "TugbayReader.PDF";
+        const string capabilitiesPath = @"Software\TugbayReader\Capabilities";
+        string classPath = @"Software\Classes\" + progId;
+        using (RegistryKey pdf = Registry.CurrentUser.CreateSubKey(classPath))
+        {
+            pdf.SetValue("", "TugbayReader PDF belgesi");
+            using (RegistryKey defaultIcon = pdf.CreateSubKey("DefaultIcon"))
+                defaultIcon.SetValue("", icon + ",0");
+            using (RegistryKey command = pdf.CreateSubKey(@"shell\open\command"))
+                command.SetValue("", "\"" + runtime + "\" \"" + app + "\" --file \"%1\"");
+            using (RegistryKey application = pdf.CreateSubKey("Application"))
+            {
+                application.SetValue("ApplicationName", "TugbayReader");
+                application.SetValue("ApplicationIcon", icon + ",0");
+            }
+        }
+        using (RegistryKey handlers = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.pdf\OpenWithProgids"))
+            handlers.SetValue(progId, new byte[0], RegistryValueKind.None);
+        using (RegistryKey capabilities = Registry.CurrentUser.CreateSubKey(capabilitiesPath))
+        {
+            capabilities.SetValue("ApplicationName", "TugbayReader");
+            capabilities.SetValue("ApplicationDescription", "Windows için yerel PDF düzenleyici");
+            capabilities.SetValue("ApplicationIcon", icon + ",0");
+            using (RegistryKey associations = capabilities.CreateSubKey("FileAssociations"))
+                associations.SetValue(".pdf", progId);
+        }
+        using (RegistryKey applications = Registry.CurrentUser.CreateSubKey(@"Software\RegisteredApplications"))
+            applications.SetValue("TugbayReader", capabilitiesPath);
+        SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+    }
+
     [STAThread]
     static int Main()
     {
@@ -20,7 +58,7 @@ static class Setup
                 Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             string menu = testing ? Path.Combine(testRoot, "StartMenu") :
                 Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-            string install = Path.Combine(programs, "14.1.2");
+            string install = Path.Combine(programs, "14.1.3");
             string runtime = Path.Combine(install, "runtime", "pythonw.exe");
             string app = Path.Combine(install, "app.py");
             string icon = Path.Combine(install, "TugbayReader.ico");
@@ -58,7 +96,10 @@ static class Setup
                 shortcut.Save();
             }
             if (!testing)
+            {
+                RegisterPdfHandler(runtime, app, icon);
                 Process.Start(new ProcessStartInfo(runtime, "\"" + app + "\" --desktop") { WorkingDirectory = install });
+            }
             return 0;
         }
         catch (Exception error)
