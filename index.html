@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TugbayReader</title>
+<link rel="icon" href="./TugbayReader.ico" type="image/vnd.microsoft.icon">
+<link rel="stylesheet" href="./style.css">
+<script src="./app.js" defer></script>
+</head>
+<body>
+<section id="launchHelp" hidden>
+  <h1>TugbayReader’ı başlatın</h1>
+  <p>Bu sayfa dosya olarak açıldı. PDF araçlarını kullanmak için aynı klasördeki <strong>TugbayReader.cmd</strong> dosyasına çift tıklayın. Uygulama yeni bir tarayıcı sekmesinde açılır.</p>
+</section>
+<header>
+  <div class="brand"><img class="logo" src="./TugbayReader.png" alt="" width="42" height="42"><div>TugbayReader<small>PDF düzenleyici</small></div></div>
+  <div class="top-actions"><a id="updateLink" target="_blank" rel="noopener noreferrer" hidden>Yeni sürüm var</a><button id="open">PDF aç</button><button class="primary" id="download" disabled>PDF indir</button></div>
+</header>
+<div class="layout">
+  <aside><h2>Sayfalar <span id="count">0</span></h2><p id="noPages">PDF açtığınızda sayfalar burada görünür.</p><div id="pages"></div></aside>
+  <main>
+    <div class="statusbar"><span id="fileName">Belge açık değil</span><span id="status" role="status"></span><div id="searchNav" hidden>
+      <button id="previousMatch" aria-label="Önceki sonuç">‹</button><span id="matchPosition"></span><button id="nextMatch" aria-label="Sonraki sonuç">›</button><button id="closeSearch" aria-label="Aramayı kapat">×</button>
+    </div></div>
+    <div id="imagePlacementActions" hidden>
+      <label for="placementSize">Genişlik (%)</label><input id="placementSize" type="number" min="1" max="100">
+      <button id="cancelPlacement" aria-keyshortcuts="Escape Delete" title="Esc veya Delete">Vazgeç</button><button class="primary" id="applyPlacement" aria-keyshortcuts="Enter" title="Enter">Görseli ekle</button>
+    </div>
+    <div class="workspace" id="workspace" aria-label="PDF çalışma alanı">
+      <section id="welcome">
+        <div class="file-icon" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h1>PDF çalışma alanı</h1>
+        <p>Bir PDF açın veya birden fazla PDF’yi buraya sürükleyip birleştirin.</p>
+        <div class="welcome-actions"><button class="primary" id="choose">PDF seç</button><button id="quickMerge">PDF’leri birleştir</button></div>
+        <small>Dosyalar bu cihazda işlenir.</small>
+      </section>
+      <div id="pageStack" hidden></div>
+      <div id="sheet" hidden><div id="targets"></div><div id="searchMarks"></div><div id="areaPreview" hidden></div>
+        <div id="imagePlacement" hidden><img alt="Yerleştirilecek görsel" draggable="false"><button id="resizePlacement" type="button" aria-label="Görseli boyutlandır" title="Boyutlandır"></button></div>
+      </div>
+    </div>
+    <div class="viewer-bar" id="viewerBar" hidden aria-label="Sayfa geçişi">
+      <button id="previousPage" aria-label="Önceki sayfa">‹</button>
+      <button id="pagePosition" title="Sayfaya git"></button>
+      <button id="nextPage" aria-label="Sonraki sayfa">›</button>
+      <button id="zoomOut" aria-label="Uzaklaştır" title="Uzaklaştır">−</button>
+      <select id="zoom" aria-label="Yakınlaştır">
+        <option value="0.25">25%</option><option value="0.33">33%</option><option value="0.5">50%</option><option value="0.75">75%</option>
+        <option value="fit" selected>Sığdır</option><option value="1">100%</option><option value="1.25">125%</option>
+        <option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option>
+      </select>
+      <button id="zoomIn" aria-label="Yakınlaştır" title="Yakınlaştır">+</button>
+    </div>
+  </main>
+    <nav aria-label="PDF araçları">
+      <h2>Araçlar</h2>
+      <div class="tool-group" role="group" aria-label="Sayfa işlemleri">
+        <span class="tool-label">Sayfa işlemleri</span>
+        <button data-action="blank" title="Seçili sayfadan sonra boş sayfa ekle"><span class="tool-icon" aria-hidden="true">+</span>Boş sayfa</button>
+        <button data-action="insert" title="PDF sayfalarını seçili sayfadan sonra ekle"><span class="tool-icon" aria-hidden="true">⊞</span>PDF ekle</button>
+        <button data-action="append" title="PDF sayfalarını belgenin sonuna ekle"><span class="tool-icon" aria-hidden="true">▤</span>PDF birleştir</button>
+        <button data-action="delete" class="danger"><span class="tool-icon" aria-hidden="true">−</span>Sayfayı sil</button>
+        <button id="rotate" data-document><span class="tool-icon" aria-hidden="true">↻</span>Döndür</button>
+        <button data-mode="crop"><span class="tool-icon" aria-hidden="true">⌗</span>Kırp</button>
+        <button id="extract" data-document><span class="tool-icon" aria-hidden="true">⇩</span>Sayfaları çıkar</button>
+        <button id="split" data-document><span class="tool-icon" aria-hidden="true">▥</span>PDF böl</button>
+      </div>
+      <div class="tool-group" role="group" aria-label="Düzenleme araçları">
+        <span class="tool-label">Düzenleme</span>
+        <button data-mode="text"><span class="tool-icon" aria-hidden="true">T</span>Yazı</button>
+        <button id="addImage" data-document><span class="tool-icon" aria-hidden="true">＋</span>Görsel ekle</button>
+        <button data-mode="image"><span class="tool-icon" aria-hidden="true">▧</span>Görseli düzenle</button><button id="sign"><span class="tool-icon" aria-hidden="true">✎</span>İmza</button>
+        <button data-mode="add_text"><span class="tool-icon" aria-hidden="true">＋</span>Metin kutusu</button>
+        <button data-mode="note"><span class="tool-icon" aria-hidden="true">◇</span>Not ekle</button>
+        <button data-mode="highlight"><span class="tool-icon" aria-hidden="true">◩</span>Vurgula</button>
+        <button data-mode="redact"><span class="tool-icon" aria-hidden="true">■</span>Kalıcı karart</button>
+      </div>
+      <div class="tool-group" role="group" aria-label="Belge araçları">
+        <span class="tool-label">Belge araçları</span>
+        <button id="find" data-document><span class="tool-icon" aria-hidden="true">⌕</span>Ara</button>
+        <button id="ocr" data-document><span class="tool-icon" aria-hidden="true">▤</span>OCR</button>
+        <button id="compress" data-document><span class="tool-icon" aria-hidden="true">⇲</span>Sıkıştır</button>
+      </div>
+      <div class="history-actions"><button id="undo" title="Ctrl+Z" aria-keyshortcuts="Control+Z">Geri al</button><button id="redo" title="Ctrl+Y" aria-keyshortcuts="Control+Y Control+Shift+Z">Yinele</button></div>
+    </nav>
+</div>
+<input type="file" accept=".pdf,application/pdf" id="pdfInput" hidden>
+<input type="file" accept="image/png,image/jpeg" id="imageInput" hidden>
+<input type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" id="newImageInput" hidden>
+<dialog id="commandDialog"><form>
+  <h2 id="commandTitle"></h2><div id="commandFields"></div>
+  <div class="dialog-actions"><button type="button" id="cancelCommand">Vazgeç</button><button class="primary" id="submitCommand">Uygula</button></div>
+</form></dialog>
+<dialog id="noteDialog"><form method="dialog">
+  <h2>Sayfa notu</h2><p id="noteContent"></p>
+  <div class="dialog-actions"><button class="primary">Kapat</button></div>
+</form></dialog>
+<dialog id="textDialog"><form method="dialog">
+  <h2>Yazıyı düzenle</h2><label for="editable">Yeni metin</label><input id="editable" type="text" maxlength="2000" autocomplete="off">
+  <div class="dialog-actions"><button value="cancel">Vazgeç</button><button class="primary" value="apply">Uygula</button></div>
+</form></dialog>
+<dialog id="imageDialog"><form method="dialog">
+  <h2>Görseli düzenle</h2><p>Seçilen görseli kaldırın veya bir PNG ya da JPEG ile değiştirin.</p>
+  <div class="dialog-actions"><button value="cancel">Vazgeç</button><button class="danger" value="remove" aria-keyshortcuts="Delete" title="Delete">Kaldır</button><button class="primary" value="replace">Değiştir</button></div>
+</form></dialog>
+<dialog id="deleteDialog"><form method="dialog">
+  <h2>Sayfa silinsin mi?</h2><p id="deleteMessage"></p>
+  <div class="dialog-actions"><button value="cancel">Vazgeç</button><button class="danger" value="apply">Sayfayı sil</button></div>
+</form></dialog>
+<dialog id="signDialog"><form method="dialog">
+  <h2>İmzanızı çizin</h2><p>Fareyi, kalemi veya dokunmatik ekranı kullanın.</p>
+  <canvas id="signature" width="720" height="240" aria-label="İmza çizim alanı"></canvas>
+  <div class="dialog-actions"><button type="button" id="clearInk">Temizle</button><button value="cancel">Vazgeç</button><button class="primary" id="useInk" value="apply" disabled>İmzayı kullan</button></div>
+</form></dialog>
+</body>
+</html>

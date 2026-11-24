@@ -1,0 +1,6 @@
+.runtime/
+.session
+__pycache__/
+build/
+*.pdf
+*.exe

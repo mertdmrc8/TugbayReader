@@ -1,2 +1,23 @@
 # TugbayReader
-Windows için yerel PDF düzenleyici
+
+TugbayReader, Windows için Türkçe bir PDF düzenleyicidir. Belgeleri yerel olarak işler.
+
+- PDF birleştirme, sayfa ekleme, çıkarma, sıralama, döndürme ve kırpma
+- Metin ve görsel düzenleme, çizimle imza, not, vurgulama ve karartma
+- Arama, Türkçe ve İngilizce OCR, sıkıştırma ve düzenleme geçmişi
+
+## Kaynak koddan çalıştırma
+
+Python 3.10 veya üstünü kurun. Ardından `TugbayReader.cmd` dosyasına çift tıklayın. İlk çalıştırmada PDF motoru indirilir. Uygulama yerel tarayıcı sekmesinde açılır.
+
+## Windows kurucusunu derleme
+
+64 bit Windows üzerinde Python ve pip gerekir. PowerShell'de `./installer/Build.ps1` komutunu çalıştırın. Kurucu `build/TugbayReader-Kurulum.exe` konumuna yazılır.
+
+Uygulama açılışta bu deponun GitHub Releases sayfasını kontrol eder. Yeni kararlı sürümde Windows kurucusu varsa kullanıcıya sürüm bağlantısını gösterir.
+
+## Bağımlılıklar
+
+- [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/about.html) · AGPL veya ticari lisans
+- [CPython](https://docs.python.org/3.13/license.html) · Python Software Foundation lisansı
+- [Tesseract dil modelleri](https://github.com/tesseract-ocr/tessdata_fast/tree/4.1.0) · Apache 2.0
