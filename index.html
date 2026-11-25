@@ -22,7 +22,7 @@
   <main>
     <div class="statusbar"><span id="fileName">Belge açık değil</span><span id="status" role="status"></span><div id="searchNav" hidden>
       <button id="previousMatch" aria-label="Önceki sonuç">‹</button><span id="matchPosition"></span><button id="nextMatch" aria-label="Sonraki sonuç">›</button><button id="closeSearch" aria-label="Aramayı kapat">×</button>
-    </div></div>
+    </div><div id="toolToggleRestore" hidden></div></div>
     <div id="imagePlacementActions" hidden>
       <label for="placementSize">Genişlik (%)</label><input id="placementSize" type="number" min="1" max="100">
       <button id="cancelPlacement" aria-keyshortcuts="Escape Delete" title="Esc veya Delete">Vazgeç</button><button class="primary" id="applyPlacement" aria-keyshortcuts="Enter" title="Enter">Görseli ekle</button>
@@ -53,8 +53,15 @@
       <button id="zoomIn" aria-label="Yakınlaştır" title="Yakınlaştır">+</button>
     </div>
   </main>
-    <nav aria-label="PDF araçları">
-      <h2>Araçlar</h2>
+    <nav id="toolsPanel" aria-label="PDF araçları">
+      <div id="toolsHeading"><h2>Araçlar</h2><button id="toggleTools" aria-controls="toolsPanel" aria-expanded="true" aria-label="Araçları gizle" title="Araçları gizle">›</button></div>
+      <div id="toolsContent">
+      <details class="favorites">
+        <summary>Favoriler</summary>
+        <ul id="favoriteTools"></ul>
+        <p id="favoritesEmpty">Favoriye eklemek için aracın yanındaki yıldıza bas.</p>
+        <p id="favoriteStatus" role="status" hidden></p>
+      </details>
       <div class="tool-group" role="group" aria-label="Sayfa işlemleri">
         <span class="tool-label">Sayfa işlemleri</span>
         <button data-action="blank" title="Seçili sayfadan sonra boş sayfa ekle"><span class="tool-icon" aria-hidden="true">+</span>Boş sayfa</button>
@@ -89,6 +96,7 @@
         <button id="checkUpdates">Güncellemeleri denetle</button>
         <p id="updateCheckStatus" role="status" hidden></p>
       </details>
+      </div>
     </nav>
 </div>
 <input type="file" accept=".pdf,application/pdf" id="pdfInput" hidden>

@@ -4,6 +4,13 @@ const actionButtons = [...document.querySelectorAll("[data-action]")];
 const modeButtons = [...document.querySelectorAll("[data-mode]")];
 const documentButtons = [...document.querySelectorAll("[data-document]")];
 const editorButtons = [...actionButtons, ...modeButtons, ...documentButtons, get("sign"), get("download")];
+const toolsPanel = get("toolsPanel");
+const favoriteTools = new Map([...toolsPanel.querySelectorAll(".tool-group button")].map(button =>
+  [button.id || button.dataset.action || button.dataset.mode, button]));
+const favoriteShortcuts = new Map();
+const favoriteStars = new Map();
+let favorites = [];
+let favoritesSaving = false;
 let page = 0;
 let count = 0;
 let revision = 0;
@@ -54,7 +61,95 @@ function controls() {
   get("printPdf").disabled = busy || !count;
   get("choose").disabled = busy;
   get("quickMerge").disabled = busy;
+  for (const [id, shortcut] of favoriteShortcuts) shortcut.disabled = favoriteTools.get(id).disabled;
 }
+
+get("toggleTools").onclick = event => {
+  const button = event.currentTarget;
+  const restore = get("toolToggleRestore");
+  const hidden = !toolsPanel.hidden;
+  (hidden ? restore : get("toolsHeading")).append(button);
+  restore.hidden = !hidden;
+  toolsPanel.hidden = hidden;
+  toolsPanel.parentElement.classList.toggle("tools-hidden", hidden);
+  const label = hidden ? "Araçları göster" : "Araçları gizle";
+  button.setAttribute("aria-expanded", String(!hidden));
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.textContent = hidden ? "‹" : "›";
+  button.focus();
+};
+
+function toolLabel(button) {
+  return [...button.childNodes].filter(node => node.nodeType === Node.TEXT_NODE)
+    .map(node => node.textContent).join("").trim();
+}
+
+function renderFavorites() {
+  const list = get("favoriteTools");
+  favoriteShortcuts.clear();
+  list.replaceChildren();
+  for (const id of favorites) {
+    const tool = favoriteTools.get(id);
+    if (!tool) continue;
+    const label = toolLabel(tool);
+    const row = document.createElement("li");
+    const shortcut = document.createElement("button");
+    shortcut.textContent = label;
+    shortcut.disabled = tool.disabled;
+    shortcut.onclick = () => tool.click();
+    favoriteShortcuts.set(id, shortcut);
+    const remove = document.createElement("button");
+    remove.textContent = "×";
+    remove.className = "remove-favorite";
+    remove.setAttribute("aria-label", label + " favoriden çıkar");
+    remove.onclick = () => saveFavorites(favorites.filter(item => item !== id));
+    row.append(shortcut, remove);
+    list.append(row);
+  }
+  get("favoritesEmpty").hidden = list.childElementCount > 0;
+  for (const [id, star] of favoriteStars) {
+    const selected = favorites.includes(id);
+    const label = toolLabel(favoriteTools.get(id)) + (selected ? " favoriden çıkar" : " favoriye ekle");
+    star.textContent = selected ? "★" : "☆";
+    star.setAttribute("aria-pressed", String(selected));
+    star.setAttribute("aria-label", label);
+    star.title = label;
+  }
+}
+
+async function saveFavorites(items) {
+  if (favoritesSaving) return;
+  favoritesSaving = true;
+  const status = get("favoriteStatus");
+  status.hidden = true;
+  try {
+    const response = await fetch("/favorites", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({items})});
+    if (!response.ok) throw new Error();
+    favorites = await response.json();
+    renderFavorites();
+  } catch {
+    status.textContent = "Favoriler kaydedilemedi.";
+    status.hidden = false;
+  } finally {
+    favoritesSaving = false;
+  }
+}
+
+for (const [id, tool] of favoriteTools) {
+  const row = document.createElement("div");
+  row.className = "tool-row";
+  const star = document.createElement("button");
+  star.type = "button";
+  star.className = "favorite-star";
+  star.onclick = () => saveFavorites(favorites.includes(id)
+    ? favorites.filter(item => item !== id) : [...favorites, id]);
+  tool.before(row);
+  row.append(tool, star);
+  favoriteStars.set(id, star);
+}
+renderFavorites();
 
 function loadPage() {
   get("viewerBar").hidden = !count;
@@ -1185,6 +1280,12 @@ if (location.protocol === "file:") {
   for (const element of document.body.children) element.hidden = true;
   get("launchHelp").hidden = false;
 } else {
+  fetch("/favorites").then(response => response.json()).then(items => {
+    if (!favoritesSaving && Array.isArray(items)) {
+      favorites = items;
+      renderFavorites();
+    }
+  }).catch(() => renderFavorites());
   fetch("/startup").then(response => response.json()).then(state => {
     if (busy || count) return;
     if (state.error) {

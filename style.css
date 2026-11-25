@@ -199,7 +199,6 @@ header { border: 1px solid var(--line); border-radius: 14px; margin: 8px 9px 0; 
 .layout > nav { border-color: #4a235e; }
 .layout > main { background: var(--workspace); }
 .layout > aside, .workspace, .statusbar { scrollbar-width: thin; scrollbar-color: #b798c8 var(--workspace); }
-.layout > nav { scrollbar-width: thin; scrollbar-color: #946cb0 var(--tool-panel); }
 .viewer-bar { border-radius: 9px; margin: 0 5px 5px; }
 @media (max-width: 680px), (max-height: 430px) {
   header { margin: 4px 4px 0; border-radius: 10px; }
@@ -217,6 +216,42 @@ header { border: 1px solid var(--line); border-radius: 14px; margin: 8px 9px 0; 
   .viewer-bar button { padding-block: 0; }
 }
 #printJob { display: none; }
+.layout.tools-hidden { grid-template-columns: 172px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.top-actions { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.favorites { margin: 0 0 16px; padding: 7px; border: 1px solid #67427e; border-radius: 9px; color: #fff5e8; }
+.favorites summary { cursor: pointer; font-weight: 650; }
+#favoriteTools { list-style: none; margin: 5px 0; padding: 0; max-height: 180px; overflow: auto; }
+#favoriteTools li, .tool-row { display: flex; align-items: center; gap: 3px; }
+#favoriteTools .remove-favorite, .tool-row .favorite-star { width: auto; flex: none; }
+.tool-row > button:first-child { flex: 1; min-width: 0; }
+nav .favorite-star { justify-content: center; min-width: 25px; min-height: 29px; padding: 2px; color: #dec6ef; font-size: .98rem; }
+nav .favorite-star[aria-pressed=true] { color: #ffdb85; background: transparent; border-color: transparent; }
+#favoritesEmpty { margin: 6px 0 2px; color: #dec6ef; font-size: .8rem; line-height: 1.4; }
+#toolsPanel { display: flex; flex-direction: column; gap: 12px; overflow: hidden; padding: 14px 10px 10px; }
+#toolsHeading { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 6px; padding: 0 4px; }
+#toolsContent { min-height: 0; min-width: 0; overflow: auto; padding-inline-end: 4px; }
+#toolsHeading h2 { margin: 0 7px; }
+#toggleTools { width: 28px; height: 28px; flex: none; display: grid; place-items: center; padding: 0; border: 1px solid #76548a; border-radius: 7px; font-size: 1.15rem; line-height: 1; }
+#toolToggleRestore { margin-left: auto; }
+#toolToggleRestore button { color: var(--accent); border-color: var(--line); }
+#favoriteStatus { margin: 4px 0; color: #ffc8d4; font-size: .8125rem; }
+#toolsContent::-webkit-scrollbar { width: 9px; height: 9px; }
+#toolsContent::-webkit-scrollbar-track { background: transparent; }
+#toolsContent::-webkit-scrollbar-thumb { background: #946cb0; border: 2px solid var(--tool-panel); border-radius: 12px; }
+#toolsContent::-webkit-scrollbar-thumb:hover { background: #c19adc; }
+@supports not selector(::-webkit-scrollbar) {
+  #toolsContent { scrollbar-width: thin; scrollbar-color: #946cb0 var(--tool-panel); }
+}
+@media (max-width: 850px) { .layout.tools-hidden { grid-template-columns: 86px minmax(0, 1fr); } }
+@media (max-width: 680px) {
+  .layout.tools-hidden { grid-template-columns: 68px minmax(0, 1fr); }
+  .favorites { flex: none; margin: 0; width: 165px; align-self: flex-start; }
+  #toolsPanel { flex-direction: row; align-items: flex-start; gap: 5px; max-height: 40dvh; padding: 6px; }
+  #toolsHeading { padding: 0; }
+  #toolsContent { display: flex; align-items: flex-start; gap: 8px; max-height: calc(40dvh - 14px); }
+  #favoriteTools { max-height: 16dvh; }
+}
+@media (max-width: 330px) { .layout.tools-hidden { grid-template-columns: 54px minmax(0, 1fr); } }
 @media print {
   html, body { height: auto; overflow: visible; background: white; }
   body { display: block; margin: 0; }

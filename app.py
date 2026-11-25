@@ -26,7 +26,7 @@ MAX_EDIT_REQUEST = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 HISTORY_LIMIT = 10
 COMPRESSION_PRESETS = {"high": (200, 82), "medium": (150, 67), "low": (96, 45)}
-APP_VERSION = (14, 1, 7)
+APP_VERSION = (14, 1, 8)
 RELEASE_REPOSITORY = "mertdmrc8/TugbayReader"
 INSTALLER_NAME = "TugbayReader-Kurulum.exe"
 MAX_INSTALLER_SIZE = 250 * 1024 * 1024
@@ -72,6 +72,13 @@ def schedule_update_check(server, force=False):
     server.update_checked_at = now
     server.update_check = "checking"
     Thread(target=check_for_update, args=(server,), daemon=True).start()
+
+
+def favorite_ids(values):
+    if not isinstance(values, list):
+        return []
+    return list(dict.fromkeys(value for value in values[:40]
+                              if isinstance(value, str) and re.fullmatch(r"[a-zA-Z0-9_-]{1,32}", value)))
 
 
 def download_installer(update, destination, progress):
@@ -595,6 +602,8 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/print-info":
                 with self.server.editor.document() as doc:
                     self.json_reply([[page.rect.width, page.rect.height] for page in doc])
+            elif path == "/favorites":
+                self.json_reply(self.server.favorites)
             elif path == "/startup":
                 state = self.server.startup.copy()
                 if state.get("name"):
@@ -648,12 +657,25 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_reply({"token": editor.receive(self.rfile, length)})
                 return
             if self.path not in ("/edit", "/discard", "/export", "/convert", "/update/install",
-                                 "/update/check") or media != "application/json":
+                                 "/update/check", "/favorites") or media != "application/json":
                 self.send_error(403)
                 return
             if not 0 < length <= MAX_EDIT_REQUEST:
                 raise ValueError("Dosya boyutu sınırı aşıldı.")
             args = json.loads(self.rfile.read(length))
+            if self.path == "/favorites":
+                favorites = favorite_ids(args["items"])
+                path = self.server.favorites_path
+                if path is not None:
+                    draft = path.with_name(uuid4().hex + ".tmp")
+                    try:
+                        draft.write_text(json.dumps(favorites), encoding="utf-8")
+                        draft.replace(path)
+                    finally:
+                        draft.unlink(missing_ok=True)
+                self.server.favorites = favorites
+                self.json_reply(favorites)
+                return
             if self.path == "/update/check":
                 schedule_update_check(self.server, force=args.get("force") is True)
                 self.json_reply({"check": self.server.update_check})
@@ -709,6 +731,13 @@ def run_server(args, session=None):
         server.update_check = "idle"
         server.update_checked_at = float("-inf")
         server.update_installable = (ROOT / "runtime" / "pythonw.exe").is_file()
+        server.favorites_path = ROOT.parent / "favorites.json" if server.update_installable else None
+        server.favorites = []
+        if server.favorites_path is not None:
+            try:
+                server.favorites = favorite_ids(json.loads(server.favorites_path.read_text(encoding="utf-8")))
+            except (OSError, ValueError):
+                pass
         server.update_status = {}
         server.startup = {}
         if args.file is not None:
