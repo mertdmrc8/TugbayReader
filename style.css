@@ -280,8 +280,10 @@ nav .favorite-star[aria-pressed=true] { color: #ffdb85; background: transparent;
   --selection: #283d55; --selection-line: #6785a7; --drag: #2b415b;
   --tool-panel: #202630; --panel-control: #354860; --panel-hover: #425777;
   --panel-line: #64748a; --panel-muted: #c0ccda; --scroll: #8296af;
+  --disabled-text: #a5b0bf;
 }
-:root[data-theme]:not([data-theme="purple"]) :where(header, .statusbar, #welcome, #launchHelp, dialog, button) { background: var(--surface); }
+:root[data-theme]:not([data-theme="purple"]) :where(header, .statusbar, dialog, button) { background: var(--surface); }
+:root[data-theme]:not([data-theme="purple"]) :is(#welcome, #launchHelp) { background: var(--surface); }
 :root[data-theme]:not([data-theme="purple"]) :is(aside, aside h2, #imagePlacementActions) { background: var(--surface-soft); }
 :root[data-theme]:not([data-theme="purple"]) :is(.statusbar, small, p) { color: var(--muted); }
 :root[data-theme]:not([data-theme="purple"]) :is(.thumbnail-fallback, #updateLink, #toolToggleRestore button) { color: var(--accent-text); }
@@ -308,6 +310,9 @@ nav .favorite-star[aria-pressed=true] { color: #ffdb85; background: transparent;
 :root[data-theme]:not([data-theme="purple"]) #resizePlacement { background: var(--accent); }
 :root[data-theme]:not([data-theme="purple"]) .page-select { accent-color: var(--accent); }
 :root[data-theme="dark"] :is(#status.error, #conversionStatus.error, dialog .danger) { color: #ffadb8; }
+:root[data-theme="dark"] button:disabled { opacity: 1; color: var(--disabled-text); cursor: default; }
+:root[data-theme="dark"] button.primary:disabled { background: #303a49; border-color: #475569; color: var(--disabled-text); }
+:root[data-theme="dark"] nav button:disabled .tool-icon { background: #293444; color: var(--disabled-text); }
 
 @media print {
   html, body { height: auto; overflow: visible; background: white; }

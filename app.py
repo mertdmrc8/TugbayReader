@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import time
+from collections import OrderedDict
 from threading import Thread
 from zipfile import ZipFile
 from tempfile import TemporaryDirectory
@@ -25,8 +26,11 @@ ROOT = Path(__file__).resolve().parent
 MAX_EDIT_REQUEST = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 HISTORY_LIMIT = 10
+PREVIEW_CACHE_BYTES = 24 * 1024 * 1024
+PREVIEW_CACHE_ENTRIES = 128
+PREVIEW_PIXELS = {"full": 1200, "thumb": 120, "thumb2": 240}
 COMPRESSION_PRESETS = {"high": (200, 82), "medium": (150, 67), "low": (96, 45)}
-APP_VERSION = (14, 1, 9)
+APP_VERSION = (14, 1, 10)
 THEMES = {"purple", "blue", "green", "dark"}
 RELEASE_REPOSITORY = "mertdmrc8/TugbayReader"
 INSTALLER_NAME = "TugbayReader-Kurulum.exe"
@@ -201,6 +205,9 @@ class Editor:
         self.redo_stack = []
         self.uploads = {}
         self.exports = {}
+        self.preview_path = None
+        self.previews = OrderedDict()
+        self.preview_bytes = 0
 
     def receive(self, stream, length):
         token = uuid4().hex
@@ -253,6 +260,32 @@ class Editor:
         if self.data is None:
             raise ValueError("Önce bir PDF açın.")
         return pdf.open(self.data)
+
+    def render_page(self, index, size):
+        if self.data != self.preview_path:
+            self.previews.clear()
+            self.preview_bytes = 0
+            self.preview_path = self.data
+        printing = size == "print"
+        limit = (min(3600, max(1200, int(size))) if size.isdigit()
+                 else PREVIEW_PIXELS.get(size, 120))
+        key = (index, limit)
+        if not printing and key in self.previews:
+            self.previews.move_to_end(key)
+            return self.previews[key]
+        with self.document() as doc:
+            page = doc[index]
+            rect = page.rect
+            longest = max(rect.width, rect.height)
+            scale = min(2.5, 4096 / longest) if printing else limit / longest
+            image = page.get_pixmap(matrix=pdf.Matrix(scale, scale)).tobytes("png")
+        if not printing and len(image) <= PREVIEW_CACHE_BYTES:
+            while (len(self.previews) >= PREVIEW_CACHE_ENTRIES
+                   or self.preview_bytes + len(image) > PREVIEW_CACHE_BYTES):
+                self.preview_bytes -= len(self.previews.popitem(last=False)[1])
+            self.previews[key] = image
+            self.preview_bytes += len(image)
+        return image
 
     def apply(self, action, args):
         index = int(args.get("page", 0))
@@ -633,14 +666,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_reply(self.server.editor.inspect(int(path.split("/")[-1])))
             elif path.startswith("/page/"):
                 _, _, index, size = path.split("/")
-                with self.server.editor.document() as doc:
-                    page = doc[int(index)]
-                    limit = (min(3600, max(1200, int(size))) if size.isdigit()
-                             else {"full": 1200, "thumb2": 240}.get(size, 120))
-                    longest = max(page.rect.width, page.rect.height)
-                    scale = min(2.5, 4096 / longest) if size == "print" else limit / longest
-                    pixmap = page.get_pixmap(matrix=pdf.Matrix(scale, scale))
-                    self.reply(pixmap.tobytes("png"), "image/png")
+                self.reply(self.server.editor.render_page(int(index), size), "image/png")
             else:
                 self.send_error(404)
         except (BrokenPipeError, ConnectionResetError):
