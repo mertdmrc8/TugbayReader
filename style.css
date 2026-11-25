@@ -188,6 +188,7 @@ body { background: var(--workspace); }
 header { border: 1px solid var(--line); border-radius: 14px; margin: 8px 9px 0; }
 .top-actions button { border-radius: 10px; }
 #updateLink { align-self: center; color: var(--accent); font-size: .875rem; font-weight: 600; padding: 5px; }
+#updateProgress { width: 100%; accent-color: var(--accent); }
 .layout { gap: 8px; padding: 8px 9px 9px; }
 .layout > aside, .layout > main, .layout > nav { border: 1px solid var(--line); border-radius: 13px; }
 .layout > nav { border-color: #4a235e; }

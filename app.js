@@ -49,6 +49,7 @@ function controls() {
   get("zoomOut").disabled = busy || !count || zoom === zoomLevels[0];
   get("zoomIn").disabled = busy || !count || zoom === zoomLevels.at(-1);
   get("open").disabled = busy;
+  get("updateButton").disabled = busy;
   get("openConvert").disabled = busy;
   get("choose").disabled = busy;
   get("quickMerge").disabled = busy;
@@ -1012,6 +1013,88 @@ document.addEventListener("keydown", event => {
   event.preventDefault();
   if (!event.repeat) get(button).click();
 });
+const updateDialog = get("updateDialog");
+const updateProgress = get("updateProgress");
+const installButton = get("installUpdate");
+const cancelUpdate = get("cancelUpdate");
+let offeredUpdate = null;
+
+function updateMessage(message, percent = null) {
+  get("updateStatus").textContent = message;
+  updateProgress.hidden = percent === null;
+  if (percent !== null) updateProgress.value = percent;
+}
+
+async function loadUpdateOffer() {
+  try {
+    const response = await fetch("/update");
+    if (!response.ok) return;
+    const {available, installable} = await response.json();
+    if (!available) return;
+    offeredUpdate = available;
+    const canInstall = installable && Boolean(available.sha256);
+    const link = get("updateLink");
+    link.href = available.url;
+    link.textContent = `Yeni sürüm · ${available.version}`;
+    link.hidden = canInstall;
+    const button = get("updateButton");
+    button.textContent = `Güncelle · ${available.version}`;
+    button.hidden = !canInstall;
+  } catch {
+    // Keep the editor available offline.
+  }
+}
+
+async function watchInstallation() {
+  for (;;) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const response = await fetch("/update");
+    if (!response.ok) throw new Error("Güncelleme durumu alınamadı.");
+    const {status} = await response.json();
+    if (status.phase === "error") throw new Error(status.message);
+    if (status.phase === "installed") {
+      updateMessage("Güncelleme tamamlandı. Yeni sürüm ayrı bir sekmede açılıyor.");
+      return;
+    }
+    if (status.phase === "install") updateMessage("Doğrulandı. Windows kurulumu yapılıyor…");
+    else updateMessage("Güncelleme indiriliyor…", status.percent ?? 0);
+  }
+}
+
+get("updateButton").onclick = () => {
+  installButton.disabled = false;
+  updateMessage(`${offeredUpdate.version} sürümü indirilecek ve TugbayReader yeniden açılacak.`);
+  updateDialog.showModal();
+};
+cancelUpdate.onclick = () => updateDialog.close();
+updateDialog.addEventListener("cancel", event => { if (busy) event.preventDefault(); });
+installButton.onclick = async () => {
+  if (busy || !offeredUpdate) return;
+  if (placement) return updateMessage("Önce görsel yerleştirmeyi tamamla veya iptal et.");
+  busy = true;
+  controls();
+  installButton.disabled = cancelUpdate.disabled = true;
+  let installed = false;
+  try {
+    const response = await fetch("/update/install", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({version: offeredUpdate.version})});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    updateMessage("Güncelleme indiriliyor…", 0);
+    await watchInstallation();
+    installed = true;
+  } catch (error) {
+    updateMessage(error.message || "Güncelleme tamamlanamadı.");
+  } finally {
+    cancelUpdate.disabled = false;
+    if (!installed) {
+      busy = false;
+      installButton.disabled = false;
+      controls();
+    }
+  }
+};
+
 controls();
 if (location.protocol === "file:") {
   for (const element of document.body.children) element.hidden = true;
@@ -1032,18 +1115,5 @@ if (location.protocol === "file:") {
     loadFrames(state.ratios);
     loadPage();
   }).catch(() => {});
-  window.setTimeout(async () => {
-    try {
-      const response = await fetch("/update");
-      if (!response.ok) return;
-      const {available} = await response.json();
-      if (!available) return;
-      const link = get("updateLink");
-      link.href = available.url;
-      link.textContent = `Yeni sürüm · ${available.version}`;
-      link.hidden = false;
-    } catch {
-      // The editor remains available offline.
-    }
-  }, 5000);
+  window.setTimeout(loadUpdateOffer, 5000);
 }

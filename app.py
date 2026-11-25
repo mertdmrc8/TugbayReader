@@ -1,9 +1,11 @@
 import argparse
 import base64
+import hashlib
 import json
 import os
 import re
 import shutil
+import subprocess
 import time
 from threading import Thread
 from zipfile import ZipFile
@@ -24,9 +26,10 @@ MAX_EDIT_REQUEST = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 HISTORY_LIMIT = 10
 COMPRESSION_PRESETS = {"high": (200, 82), "medium": (150, 67), "low": (96, 45)}
-APP_VERSION = (14, 1, 4)
+APP_VERSION = (14, 1, 5)
 RELEASE_REPOSITORY = "mertdmrc8/TugbayReader"
 INSTALLER_NAME = "TugbayReader-Kurulum.exe"
+MAX_INSTALLER_SIZE = 250 * 1024 * 1024
 
 
 def available_update(release):
@@ -35,12 +38,17 @@ def available_update(release):
     if not match or release.get("draft") or release.get("prerelease"):
         return None
     version = tuple(int(part or 0) for part in match.groups())
-    if version <= APP_VERSION or not any(
-        asset.get("name") == INSTALLER_NAME and asset.get("state") == "uploaded"
-        for asset in release.get("assets", [])
-    ):
+    installer = next((asset for asset in release.get("assets", [])
+                      if asset.get("name") == INSTALLER_NAME and asset.get("state") == "uploaded"), None)
+    if version <= APP_VERSION or installer is None:
         return None
-    return {"version": tag, "url": f"https://github.com/{RELEASE_REPOSITORY}/releases/tag/{tag}"}
+    update = {"version": tag, "url": f"https://github.com/{RELEASE_REPOSITORY}/releases/tag/{tag}"}
+    digest = installer.get("digest")
+    size = installer.get("size")
+    if (isinstance(digest, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+            and type(size) is int and 0 < size <= MAX_INSTALLER_SIZE):
+        update.update(sha256=digest.removeprefix("sha256:"), size=size)
+    return update
 
 
 def check_for_update(server):
@@ -54,6 +62,50 @@ def check_for_update(server):
         server.update = available_update(release)
     except (OSError, URLError, ValueError, TypeError, AttributeError):
         pass
+
+
+def download_installer(update, destination, progress):
+    url = f"https://github.com/{RELEASE_REPOSITORY}/releases/download/{update['version']}/{INSTALLER_NAME}"
+    request = Request(url, headers={"User-Agent": "TugbayReader"})
+    checksum = hashlib.sha256()
+    received = 0
+    with urlopen(request, timeout=15) as response, destination.open("xb") as installer:
+        final = urlsplit(response.geturl())
+        if final.scheme != "https" or final.hostname not in (
+            "github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"
+        ):
+            raise ValueError("Güncelleme indirme adresi doğrulanamadı.")
+        while chunk := response.read(CHUNK_SIZE):
+            received += len(chunk)
+            if received > update["size"]:
+                raise ValueError("Kurucu dosyasının boyutu doğrulanamadı.")
+            installer.write(chunk)
+            checksum.update(chunk)
+            progress(received * 100 // update["size"])
+    if received != update["size"] or checksum.hexdigest() != update["sha256"]:
+        raise ValueError("Kurucunun SHA-256 doğrulaması başarısız oldu.")
+
+
+def install_update(server, update):
+    try:
+        with TemporaryDirectory(prefix="TugbayReader-Update-") as directory:
+            installer = Path(directory) / INSTALLER_NAME
+            def progress(percent):
+                server.update_status = {"phase": "download", "percent": percent}
+
+            download_installer(update, installer, progress)
+            server.update_status = {"phase": "install"}
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            result = subprocess.run([str(installer)], check=False, creationflags=flags)
+            if result.returncode:
+                raise ValueError("Windows kurucusu güncellemeyi tamamlayamadı.")
+    except (OSError, ValueError) as error:
+        message = str(error) if isinstance(error, ValueError) else "Kurucu indirilemedi veya çalıştırılamadı."
+        server.update_status = {"phase": "error", "message": message}
+        return
+    server.update_status = {"phase": "installed"}
+    time.sleep(4)
+    server.shutdown()
 
 
 def decode(data):
@@ -115,6 +167,7 @@ class Editor:
     def __init__(self, directory):
         self.directory = Path(directory)
         self.data = None
+        self.saved_path = None
         self.undo_stack = []
         self.redo_stack = []
         self.uploads = {}
@@ -190,6 +243,7 @@ class Editor:
                 pass
             self.uploads.pop(token)
             self.replace(path)
+            self.saved_path = path
         else:
             self.modify_document(index, action, args)
         return self.state()
@@ -526,7 +580,8 @@ class Handler(BaseHTTPRequestHandler):
                 query = parse_qs(url.query).get("q", [""])[0]
                 self.json_reply(self.server.editor.search(query[:200]))
             elif path == "/update":
-                self.json_reply({"available": self.server.update})
+                self.json_reply({"available": self.server.update, "installable": self.server.update_installable,
+                                 "status": self.server.update_status})
             elif path == "/startup":
                 state = self.server.startup.copy()
                 if state.get("name"):
@@ -537,6 +592,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.json_reply({"error": "Önce bir PDF açın."}, 404)
                     return
                 self.send_file(self.server.editor.data)
+                self.server.editor.saved_path = self.server.editor.data
             elif path.startswith("/objects/"):
                 self.json_reply(self.server.editor.inspect(int(path.split("/")[-1])))
             elif path.startswith("/page/"):
@@ -577,12 +633,15 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/upload" and media == "application/octet-stream" and length > 0:
                 self.json_reply({"token": editor.receive(self.rfile, length)})
                 return
-            if self.path not in ("/edit", "/discard", "/export", "/convert") or media != "application/json":
+            if self.path not in ("/edit", "/discard", "/export", "/convert", "/update/install") or media != "application/json":
                 self.send_error(403)
                 return
             if not 0 < length <= MAX_EDIT_REQUEST:
                 raise ValueError("Dosya boyutu sınırı aşıldı.")
             args = json.loads(self.rfile.read(length))
+            if self.path == "/update/install":
+                self.start_update(args.get("version"))
+                return
             if self.path == "/export":
                 self.json_reply(editor.export(args["groups"]))
                 return
@@ -594,6 +653,9 @@ class Handler(BaseHTTPRequestHandler):
                     editor.discard_upload(token)
                 self.json_reply({})
                 return
+            if self.server.update_status.get("phase") in ("download", "install", "installed"):
+                self.json_reply({"error": "Güncelleme kurulurken belge düzenlenemez."}, 409)
+                return
             self.json_reply(editor.apply(args["action"], args))
         except OSError:
             self.json_reply({"error": "Dosya diske yazılamadı. Boş disk alanını kontrol edin."}, 507)
@@ -603,11 +665,30 @@ class Handler(BaseHTTPRequestHandler):
                 message = "İşlem tamamlanamadı. Dosyayı veya seçimi kontrol edin."
             self.json_reply({"error": message}, 400)
 
+    def start_update(self, version):
+        update = self.server.update
+        if not self.server.update_installable or not update or "sha256" not in update or version != update["version"]:
+            self.json_reply({"error": "Doğrulanabilir bir Windows güncellemesi bulunamadı."}, 400)
+            return
+        phase = self.server.update_status.get("phase")
+        if phase in ("download", "install", "installed"):
+            self.json_reply({"error": "Güncelleme işlemi zaten başladı."}, 409)
+            return
+        editor = self.server.editor
+        if editor.data is not None and editor.data != editor.saved_path:
+            self.json_reply({"error": "Önce açık PDF’yi indir, ardından güncellemeyi yeniden başlat."}, 409)
+            return
+        self.server.update_status = {"phase": "download", "percent": 0}
+        Thread(target=install_update, args=(self.server, update), daemon=True).start()
+        self.json_reply({"started": True}, 202)
+
 
 def run_server(args, session=None):
     with TemporaryDirectory(prefix="TugbayReader-") as directory, ReaderServer(("127.0.0.1", args.port), Handler) as server:
         server.editor = Editor(directory)
         server.update = None
+        server.update_installable = (ROOT / "runtime" / "pythonw.exe").is_file()
+        server.update_status = {}
         server.startup = {}
         if args.file is not None:
             try:

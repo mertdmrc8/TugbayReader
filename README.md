@@ -15,7 +15,7 @@ Python 3.10 veya üstünü kurun. Ardından `TugbayReader.cmd` dosyasına çift 
 
 64 bit Windows üzerinde Python ve pip gerekir. PowerShell'de `./installer/Build.ps1` komutunu çalıştırın. Kurucu `build/TugbayReader-Kurulum.exe` konumuna yazılır.
 
-Uygulama açılışta bu deponun GitHub Releases sayfasını kontrol eder. Yeni kararlı sürümde Windows kurucusu varsa kullanıcıya sürüm bağlantısını gösterir.
+Uygulama açılışta GitHub Releases üzerinden yeni kararlı sürümleri kontrol eder. Kurulu sürümde **Güncelle ve yeniden başlat** düğmesi kurucuyu indirir, SHA-256 değerini doğrular ve kurulumu başlatır. Düzenlenmiş PDF'yi güncellemeden önce indirin.
 
 Kurulumdan sonra **Ayarlar → Uygulamalar → Varsayılan uygulamalar** ekranında `.pdf` uzantısını arayın ve **TugbayReader**'ı seçin. PDF dosyasına çift tıkladığınızda belge düzenleyicide açılır.
 
