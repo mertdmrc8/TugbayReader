@@ -51,6 +51,7 @@ function controls() {
   get("open").disabled = busy;
   get("updateButton").disabled = busy;
   get("openConvert").disabled = busy;
+  get("printPdf").disabled = busy || !count;
   get("choose").disabled = busy;
   get("quickMerge").disabled = busy;
 }
@@ -636,6 +637,62 @@ function pageRanges(value) {
   return [...indices];
 }
 
+get("printPdf").onclick = () => {
+  if (busy || !count) return;
+  chooseOptions("PDF yazdır", [{
+    name: "pages", label: "Sayfalar (ör. 1, 3-5)", value: count === 1 ? "1" : `1-${count}`
+  }], "Yazdır", values => printPages(pageRanges(values.pages)));
+};
+
+async function printPages(pages) {
+  busy = true;
+  controls();
+  const job = get("printJob");
+  const rules = document.createElement("style");
+  const finish = () => {
+    job.replaceChildren();
+    rules.remove();
+    busy = false;
+    controls();
+    notify();
+  };
+  try {
+    notify("Sayfalar yazdırmaya hazırlanıyor…");
+    const response = await fetch("/print-info");
+    if (!response.ok) throw new Error("PDF sayfa ölçüleri alınamadı.");
+    const sizes = await response.json();
+    const formats = new Map();
+    for (let start = 0; start < pages.length; start += 4) {
+      const sections = await Promise.all(pages.slice(start, start + 4).map(async index => {
+        const [width, height] = sizes[index];
+        const size = `${width.toFixed(3)}pt ${height.toFixed(3)}pt`;
+        if (!formats.has(size)) formats.set(size, "pdf" + formats.size);
+        const section = document.createElement("section");
+        section.className = "print-page";
+        section.style.page = formats.get(size);
+        section.style.height = `${Math.max(1, height - .15)}pt`;
+        const image = new Image();
+        image.alt = `Sayfa ${index + 1}`;
+        image.src = `/page/${index}/print?v=${revision}`;
+        try { await image.decode(); }
+        catch { throw new Error(`${index + 1}. sayfa yazdırmaya hazırlanamadı.`); }
+        section.append(image);
+        return section;
+      }));
+      job.append(...sections);
+      notify(`Yazdırmaya hazırlanıyor · ${job.childElementCount} / ${pages.length}`);
+    }
+    rules.textContent = [...formats].map(([size, name]) => `@page ${name} { size: ${size}; margin: 0; }`).join("\n");
+    document.head.append(rules);
+    window.addEventListener("afterprint", finish, {once: true});
+    window.print();
+  } catch (error) {
+    window.removeEventListener("afterprint", finish);
+    finish();
+    notify(error.message, true);
+  }
+}
+
 function chooseOptions(title, fields, submit, callback) {
   const dialog = get("commandDialog");
   const area = get("commandFields");
@@ -1004,6 +1061,11 @@ sheet.addEventListener("click", event => {
 });
 
 document.addEventListener("keydown", event => {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "p") {
+    event.preventDefault();
+    if (!event.repeat && !document.querySelector("dialog[open]")) get("printPdf").click();
+    return;
+  }
   if (!(event.ctrlKey || event.metaKey) || event.altKey || event.isComposing || !count || busy ||
       document.querySelector("dialog[open]") ||
       event.target.closest("input, textarea, select, [contenteditable=true]")) return;

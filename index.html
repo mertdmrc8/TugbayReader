@@ -15,7 +15,7 @@
 </section>
 <header>
   <div class="brand"><img class="logo" src="./TugbayReader.png" alt="" width="42" height="42"><div>TugbayReader<small>PDF düzenleyici</small></div></div>
-  <div class="top-actions"><a id="updateLink" target="_blank" rel="noopener noreferrer" hidden>Yeni sürüm var</a><button id="updateButton" hidden>Güncelle</button><button id="open">PDF aç</button><button id="openConvert" aria-haspopup="dialog">Convert</button><button class="primary" id="download" disabled>PDF indir</button></div>
+  <div class="top-actions"><a id="updateLink" target="_blank" rel="noopener noreferrer" hidden>Yeni sürüm var</a><button id="updateButton" hidden>Güncelle</button><button id="open">PDF aç</button><button id="openConvert" aria-haspopup="dialog">Convert</button><button id="printPdf" aria-haspopup="dialog" aria-keyshortcuts="Control+P" title="Ctrl+P" disabled>Yazdır</button><button class="primary" id="download" disabled>PDF indir</button></div>
 </header>
 <div class="layout">
   <aside><h2>Sayfalar <span id="count">0</span></h2><p id="noPages">PDF açtığınızda sayfalar burada görünür.</p><div id="pages"></div></aside>
@@ -89,6 +89,7 @@
 <input type="file" accept=".pdf,application/pdf" id="pdfInput" hidden>
 <input type="file" accept="image/png,image/jpeg" id="imageInput" hidden>
 <input type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" id="newImageInput" hidden>
+<div id="printJob" aria-hidden="true"></div>
 <dialog id="updateDialog" aria-labelledby="updateTitle">
   <h2 id="updateTitle">TugbayReader güncellemesi</h2>
   <p id="updateStatus" role="status"></p>

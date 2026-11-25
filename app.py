@@ -26,7 +26,7 @@ MAX_EDIT_REQUEST = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 HISTORY_LIMIT = 10
 COMPRESSION_PRESETS = {"high": (200, 82), "medium": (150, 67), "low": (96, 45)}
-APP_VERSION = (14, 1, 5)
+APP_VERSION = (14, 1, 6)
 RELEASE_REPOSITORY = "mertdmrc8/TugbayReader"
 INSTALLER_NAME = "TugbayReader-Kurulum.exe"
 MAX_INSTALLER_SIZE = 250 * 1024 * 1024
@@ -582,6 +582,9 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/update":
                 self.json_reply({"available": self.server.update, "installable": self.server.update_installable,
                                  "status": self.server.update_status})
+            elif path == "/print-info":
+                with self.server.editor.document() as doc:
+                    self.json_reply([[page.rect.width, page.rect.height] for page in doc])
             elif path == "/startup":
                 state = self.server.startup.copy()
                 if state.get("name"):
@@ -601,7 +604,8 @@ class Handler(BaseHTTPRequestHandler):
                     page = doc[int(index)]
                     limit = (min(3600, max(1200, int(size))) if size.isdigit()
                              else {"full": 1200, "thumb2": 240}.get(size, 120))
-                    scale = limit / max(page.rect.width, page.rect.height)
+                    longest = max(page.rect.width, page.rect.height)
+                    scale = min(2.5, 4096 / longest) if size == "print" else limit / longest
                     pixmap = page.get_pixmap(matrix=pdf.Matrix(scale, scale))
                     self.reply(pixmap.tobytes("png"), "image/png")
             else:
