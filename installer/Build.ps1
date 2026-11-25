@@ -10,17 +10,21 @@ if ((Get-FileHash -LiteralPath $pythonArchive -Algorithm SHA256).Hash -ne '9E353
     throw 'Python arşivi doğrulanamadı.'
 }
 Expand-Archive -LiteralPath $pythonArchive -DestinationPath $runtime.FullName
+Add-Content -LiteralPath (Join-Path $runtime.FullName 'python313._pth') -Value '..' -Encoding ascii
 python -m pip install --only-binary=:all: --no-deps --platform win_amd64 --implementation cp --python-version 3.13 --abi cp313 --target $runtime.FullName 'PyMuPDF==1.28.2'
 if ($LASTEXITCODE -ne 0) { throw 'PDF motoru yüklenemedi.' }
 
-$files = 'app.py', 'app.js', 'index.html', 'style.css', 'TugbayReader.cmd', 'TugbayReader.ico', 'TugbayReader.png', 'tessdata', 'LICENSE', 'README.md'
+$files = 'app.py', 'converter.py', 'app.js', 'index.html', 'style.css', 'TugbayReader.cmd', 'TugbayReader.ico', 'TugbayReader.png', 'tessdata', 'LICENSE', 'README.md'
 foreach ($file in $files) {
     Copy-Item -LiteralPath (Join-Path $root $file) -Destination $payload.FullName -Recurse
 }
-$archive = Join-Path $stage.FullName 'TugbayReader.zip'
-Compress-Archive -Path (Join-Path $payload.FullName '*') -DestinationPath $archive
 $setup = Join-Path $build.FullName 'TugbayReader-Kurulum.exe'
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+$wordBridge = Join-Path $payload.FullName 'WordConverter.exe'
+& $compiler /nologo /target:winexe /optimize+ /reference:Microsoft.CSharp.dll "/out:$wordBridge" (Join-Path $PSScriptRoot 'WordConverter.cs')
+if ($LASTEXITCODE -ne 0) { throw 'Word dönüştürme yardımcısı derlenemedi.' }
+$archive = Join-Path $stage.FullName 'TugbayReader.zip'
+Compress-Archive -Path (Join-Path $payload.FullName '*') -DestinationPath $archive
 $icon = Join-Path $root 'TugbayReader.ico'
 & $compiler /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /reference:Microsoft.CSharp.dll "/win32icon:$icon" "/resource:$archive,TugbayReader.zip" "/out:$setup" (Join-Path $PSScriptRoot 'Setup.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Kurucu derlenemedi.' }

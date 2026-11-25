@@ -49,6 +49,7 @@ function controls() {
   get("zoomOut").disabled = busy || !count || zoom === zoomLevels[0];
   get("zoomIn").disabled = busy || !count || zoom === zoomLevels.at(-1);
   get("open").disabled = busy;
+  get("openConvert").disabled = busy;
   get("choose").disabled = busy;
   get("quickMerge").disabled = busy;
 }
@@ -377,7 +378,7 @@ async function usePdfs(files, action) {
       const selected = action === "open" ? files.slice(0, 1) : files;
       for (const file of selected) {
         notify(`${file.name} aktarılıyor…`);
-        const token = await uploadPdf(file);
+        const token = await uploadFile(file);
         tokens.push(token);
         sources.push({ name: file.name, token });
       }
@@ -391,7 +392,7 @@ async function usePdfs(files, action) {
   }
 }
 
-function uploadPdf(file) {
+function uploadFile(file, report = notify) {
   return new Promise((resolve, reject) => {
     if (!file.size) {
       reject(new Error(`${file.name} boş.`));
@@ -402,7 +403,7 @@ function uploadPdf(file) {
     request.responseType = "json";
     request.setRequestHeader("Content-Type", "application/octet-stream");
     request.upload.onprogress = event => {
-      if (event.lengthComputable) notify(`${file.name} aktarılıyor · %${Math.round(event.loaded / event.total * 100)}`);
+      if (event.lengthComputable) report(`${file.name} aktarılıyor · %${Math.round(event.loaded / event.total * 100)}`);
     };
     request.onload = () => {
       if (request.status === 200 && request.response?.token) resolve(request.response.token);
@@ -412,6 +413,78 @@ function uploadPdf(file) {
     request.send(file);
   });
 }
+
+const conversionDialog = get("convertDialog");
+const conversionKind = get("conversionKind");
+const conversionFile = get("conversionFile");
+const conversionHints = {
+  "pdf-docx": "Metin düzenlenebilir olur. Karmaşık düzenler değişebilir ve taranmış sayfalar görsel olarak kalır.",
+  "word-pdf": "Bu dönüşüm bilgisayarda yüklü Microsoft Word’ü kullanır.",
+  "pdf-txt": "PDF’deki seçilebilir metni UTF-8 dosyası olarak kaydeder.",
+  "pdf-png": "Her sayfayı bir PNG görseli olarak ZIP içinde kaydeder.",
+  "pdf-jpeg": "Her sayfayı bir JPEG görseli olarak ZIP içinde kaydeder.",
+  "images-pdf": "Bir veya daha fazla görsel seç. Her görsel PDF’de ayrı sayfa olur."
+};
+
+function conversionStatus(message = "", error = false) {
+  const status = get("conversionStatus");
+  status.textContent = message;
+  status.classList.toggle("error", error);
+}
+
+function configureConversion() {
+  const kind = conversionKind.value;
+  const usesOpenPdf = kind.startsWith("pdf-") && count > 0;
+  conversionFile.value = "";
+  conversionFile.multiple = kind === "images-pdf";
+  conversionFile.required = !usesOpenPdf;
+  conversionFile.accept = kind === "images-pdf" ? ".png,.jpg,.jpeg" : kind === "word-pdf" ? ".doc,.docx" : ".pdf";
+  get("conversionHint").textContent = conversionHints[kind] +
+    (usesOpenPdf ? " Dosya seçmezsen açık PDF kullanılır." : "");
+  conversionStatus();
+}
+
+get("openConvert").onclick = () => {
+  configureConversion();
+  conversionDialog.showModal();
+};
+get("closeConvert").onclick = () => conversionDialog.close();
+conversionKind.onchange = configureConversion;
+conversionDialog.addEventListener("cancel", event => { if (busy) event.preventDefault(); });
+
+get("convertForm").onsubmit = async event => {
+  event.preventDefault();
+  if (busy) return;
+  const kind = conversionKind.value;
+  const files = [...conversionFile.files];
+  const inputs = [];
+  const dialogControls = [conversionKind, conversionFile, get("closeConvert"), get("startConversion")];
+  busy = true;
+  controls();
+  dialogControls.forEach(control => { control.disabled = true; });
+  try {
+    for (const file of files) inputs.push({name: file.name, token: await uploadFile(file, conversionStatus)});
+    conversionStatus("Dosya dönüştürülüyor…");
+    const response = await fetch("/convert", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({kind, inputs})});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    const link = document.createElement("a");
+    link.href = "/export/" + result.token;
+    const name = files.length > 1 ? "Gorseller" : files[0]?.name || filename;
+    link.download = name.replace(/\.[^.]+$/, "") + result.extension;
+    link.click();
+    conversionStatus("Dönüştürme tamamlandı. İndirme başlatıldı.");
+  } catch (error) {
+    conversionStatus(error.message || "Dönüştürme tamamlanamadı.", true);
+  } finally {
+    if (inputs.length) await fetch("/discard", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({tokens: inputs.map(input => input.token)})}).catch(() => {});
+    busy = false;
+    dialogControls.forEach(control => { control.disabled = false; });
+    controls();
+  }
+};
 
 get("open").onclick = get("choose").onclick = () => pick("open");
 get("quickMerge").onclick = () => pick("append");

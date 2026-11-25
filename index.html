@@ -15,7 +15,7 @@
 </section>
 <header>
   <div class="brand"><img class="logo" src="./TugbayReader.png" alt="" width="42" height="42"><div>TugbayReader<small>PDF düzenleyici</small></div></div>
-  <div class="top-actions"><a id="updateLink" target="_blank" rel="noopener noreferrer" hidden>Yeni sürüm var</a><button id="open">PDF aç</button><button class="primary" id="download" disabled>PDF indir</button></div>
+  <div class="top-actions"><a id="updateLink" target="_blank" rel="noopener noreferrer" hidden>Yeni sürüm var</a><button id="open">PDF aç</button><button id="openConvert" aria-haspopup="dialog">Convert</button><button class="primary" id="download" disabled>PDF indir</button></div>
 </header>
 <div class="layout">
   <aside><h2>Sayfalar <span id="count">0</span></h2><p id="noPages">PDF açtığınızda sayfalar burada görünür.</p><div id="pages"></div></aside>
@@ -89,6 +89,25 @@
 <input type="file" accept=".pdf,application/pdf" id="pdfInput" hidden>
 <input type="file" accept="image/png,image/jpeg" id="imageInput" hidden>
 <input type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" id="newImageInput" hidden>
+<dialog id="convertDialog" aria-labelledby="convertTitle">
+  <form id="convertForm">
+    <h2 id="convertTitle">Dosya dönüştür</h2>
+    <label for="conversionKind">Dönüştürme türü</label>
+    <select id="conversionKind">
+      <option value="pdf-docx">PDF → Word (.docx)</option>
+      <option value="word-pdf">Word (.doc, .docx) → PDF</option>
+      <option value="pdf-txt">PDF → Metin (.txt)</option>
+      <option value="pdf-png">PDF → PNG (.zip)</option>
+      <option value="pdf-jpeg">PDF → JPEG (.zip)</option>
+      <option value="images-pdf">PNG / JPEG → PDF</option>
+    </select>
+    <p id="conversionHint"></p>
+    <label for="conversionFile">Kaynak dosya</label>
+    <input type="file" id="conversionFile" accept=".pdf">
+    <p id="conversionStatus" role="status"></p>
+    <div class="dialog-actions"><button type="button" id="closeConvert">Kapat</button><button class="primary" id="startConversion">Dönüştür ve indir</button></div>
+  </form>
+</dialog>
 <dialog id="commandDialog"><form>
   <h2 id="commandTitle"></h2><div id="commandFields"></div>
   <div class="dialog-actions"><button type="button" id="cancelCommand">Vazgeç</button><button class="primary" id="submitCommand">Uygula</button></div>

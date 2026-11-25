@@ -134,6 +134,9 @@ nav .danger { color: #ffc8d4; }
 #commandFields label:not(:first-child) { margin-top: 12px; }
 #commandFields textarea { min-height: 90px; resize: vertical; }
 #noteContent { white-space: pre-wrap; overflow-wrap: anywhere; }
+#conversionKind { width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; }
+#conversionHint, #conversionStatus { font-size: .875rem; line-height: 1.5; }
+#conversionStatus.error { color: #a32230; }
 #searchMarks { position: absolute; inset: 0; pointer-events: none; }
 #searchMarks > div { position: absolute; background: #ffe16c66; }
 #searchMarks .active-match { outline: 2px solid #d2710d; background: #ffc34f80; }

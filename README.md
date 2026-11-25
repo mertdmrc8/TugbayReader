@@ -5,6 +5,7 @@ TugbayReader, Windows için Türkçe bir PDF düzenleyicidir. Belgeleri yerel ol
 - PDF birleştirme, sayfa ekleme, çıkarma, sıralama, döndürme ve kırpma
 - Metin ve görsel düzenleme, çizimle imza, not, vurgulama ve karartma
 - Arama, Türkçe ve İngilizce OCR, sıkıştırma ve düzenleme geçmişi
+- Convert sekmesinde PDF → Word, metin veya PNG/JPEG ve Word veya PNG/JPEG → PDF
 
 ## Kaynak koddan çalıştırma
 
@@ -17,6 +18,8 @@ Python 3.10 veya üstünü kurun. Ardından `TugbayReader.cmd` dosyasına çift 
 Uygulama açılışta bu deponun GitHub Releases sayfasını kontrol eder. Yeni kararlı sürümde Windows kurucusu varsa kullanıcıya sürüm bağlantısını gösterir.
 
 Kurulumdan sonra **Ayarlar → Uygulamalar → Varsayılan uygulamalar** ekranında `.pdf` uzantısını arayın ve **TugbayReader**'ı seçin. PDF dosyasına çift tıkladığınızda belge düzenleyicide açılır.
+
+**Convert** sekmesinden açık PDF'yi veya yeni bir dosyayı dönüştürebilirsiniz. Word → PDF işlemi için Microsoft Word gerekir. PDF → Word çıktısında metin düzenlenebilir, taranmış sayfalar görsel olarak eklenir ve karmaşık yerleşimler değişebilir.
 
 ## Bağımlılıklar
 

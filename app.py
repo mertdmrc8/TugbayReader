@@ -17,13 +17,14 @@ from urllib.request import Request, urlopen
 import webbrowser
 
 import pymupdf as pdf
+from converter import DOCX_MIME, KINDS, convert
 
 ROOT = Path(__file__).resolve().parent
 MAX_EDIT_REQUEST = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 HISTORY_LIMIT = 10
 COMPRESSION_PRESETS = {"high": (200, 82), "medium": (150, 67), "low": (96, 45)}
-APP_VERSION = (14, 1, 3)
+APP_VERSION = (14, 1, 4)
 RELEASE_REPOSITORY = "mertdmrc8/TugbayReader"
 INSTALLER_NAME = "TugbayReader-Kurulum.exe"
 
@@ -294,6 +295,26 @@ class Editor:
                 for part in parts:
                     part.unlink(missing_ok=True)
 
+    def convert(self, kind, inputs):
+        if kind not in KINDS:
+            raise ValueError("Geçerli bir dönüşüm seçin.")
+        if inputs:
+            sources = [(self.uploads[item["token"]], Path(item["name"]).suffix.lower()) for item in inputs]
+        elif kind.startswith("pdf-") and self.data is not None:
+            sources = [(self.data, ".pdf")]
+        else:
+            raise ValueError("Dönüştürülecek dosyayı seçin.")
+        token = uuid4().hex
+        extension = KINDS[kind][0]
+        target = self.directory / (token + extension)
+        try:
+            convert(kind, sources, target)
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
+        self.exports[token] = target
+        return {"token": token, "extension": extension}
+
     def search(self, query):
         if not query.strip():
             return []
@@ -537,7 +558,8 @@ class Handler(BaseHTTPRequestHandler):
     def send_file(self, path):
         with path.open("rb") as document:
             self.send_response(200)
-            mime = "application/zip" if path.suffix == ".zip" else "application/pdf"
+            mime = {".zip": "application/zip", ".pdf": "application/pdf", ".docx": DOCX_MIME,
+                    ".txt": "text/plain; charset=utf-8"}.get(path.suffix, "application/octet-stream")
             self.send_header("Content-Type", mime)
             self.send_header("Content-Length", str(path.stat().st_size))
             self.send_header("Cache-Control", "no-store")
@@ -555,7 +577,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/upload" and media == "application/octet-stream" and length > 0:
                 self.json_reply({"token": editor.receive(self.rfile, length)})
                 return
-            if self.path not in ("/edit", "/discard", "/export") or media != "application/json":
+            if self.path not in ("/edit", "/discard", "/export", "/convert") or media != "application/json":
                 self.send_error(403)
                 return
             if not 0 < length <= MAX_EDIT_REQUEST:
@@ -563,6 +585,9 @@ class Handler(BaseHTTPRequestHandler):
             args = json.loads(self.rfile.read(length))
             if self.path == "/export":
                 self.json_reply(editor.export(args["groups"]))
+                return
+            if self.path == "/convert":
+                self.json_reply(editor.convert(args["kind"], args["inputs"]))
                 return
             if self.path == "/discard":
                 for token in args["tokens"]:
