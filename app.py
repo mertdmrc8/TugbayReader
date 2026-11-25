@@ -26,7 +26,7 @@ MAX_EDIT_REQUEST = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 HISTORY_LIMIT = 10
 COMPRESSION_PRESETS = {"high": (200, 82), "medium": (150, 67), "low": (96, 45)}
-APP_VERSION = (14, 1, 6)
+APP_VERSION = (14, 1, 7)
 RELEASE_REPOSITORY = "mertdmrc8/TugbayReader"
 INSTALLER_NAME = "TugbayReader-Kurulum.exe"
 MAX_INSTALLER_SIZE = 250 * 1024 * 1024
@@ -60,8 +60,18 @@ def check_for_update(server):
         with urlopen(request, timeout=4) as response:
             release = json.loads(response.read(256 * 1024))
         server.update = available_update(release)
+        server.update_check = "ready"
     except (OSError, URLError, ValueError, TypeError, AttributeError):
-        pass
+        server.update_check = "error"
+
+
+def schedule_update_check(server, force=False):
+    now = time.monotonic()
+    if server.update_check == "checking" or (not force and now - server.update_checked_at < 60):
+        return
+    server.update_checked_at = now
+    server.update_check = "checking"
+    Thread(target=check_for_update, args=(server,), daemon=True).start()
 
 
 def download_installer(update, destination, progress):
@@ -581,7 +591,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_reply(self.server.editor.search(query[:200]))
             elif path == "/update":
                 self.json_reply({"available": self.server.update, "installable": self.server.update_installable,
-                                 "status": self.server.update_status})
+                                 "status": self.server.update_status, "check": self.server.update_check})
             elif path == "/print-info":
                 with self.server.editor.document() as doc:
                     self.json_reply([[page.rect.width, page.rect.height] for page in doc])
@@ -637,12 +647,17 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/upload" and media == "application/octet-stream" and length > 0:
                 self.json_reply({"token": editor.receive(self.rfile, length)})
                 return
-            if self.path not in ("/edit", "/discard", "/export", "/convert", "/update/install") or media != "application/json":
+            if self.path not in ("/edit", "/discard", "/export", "/convert", "/update/install",
+                                 "/update/check") or media != "application/json":
                 self.send_error(403)
                 return
             if not 0 < length <= MAX_EDIT_REQUEST:
                 raise ValueError("Dosya boyutu sınırı aşıldı.")
             args = json.loads(self.rfile.read(length))
+            if self.path == "/update/check":
+                schedule_update_check(self.server, force=args.get("force") is True)
+                self.json_reply({"check": self.server.update_check})
+                return
             if self.path == "/update/install":
                 self.start_update(args.get("version"))
                 return
@@ -691,6 +706,8 @@ def run_server(args, session=None):
     with TemporaryDirectory(prefix="TugbayReader-") as directory, ReaderServer(("127.0.0.1", args.port), Handler) as server:
         server.editor = Editor(directory)
         server.update = None
+        server.update_check = "idle"
+        server.update_checked_at = float("-inf")
         server.update_installable = (ROOT / "runtime" / "pythonw.exe").is_file()
         server.update_status = {}
         server.startup = {}
@@ -701,7 +718,7 @@ def run_server(args, session=None):
             except (OSError, ValueError, RuntimeError):
                 server.startup = {"error": f"{args.file.name} açılamadı. Geçerli, şifresiz bir PDF seçin."}
         if not args.no_browser:
-            Thread(target=check_for_update, args=(server,), daemon=True).start()
+            schedule_update_check(server)
         url = f"http://127.0.0.1:{server.server_port}"
         if session is not None:
             session.seek(1)

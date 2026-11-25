@@ -125,6 +125,10 @@ nav .danger { color: #ffc8d4; }
 
 .history-actions { display: flex; gap: 5px; }
 .source-link { display: block; margin: 14px 7px 0; color: #dec6ef; font-size: .8125rem; white-space: nowrap; }
+.update-tools { margin: 10px 7px 0; color: #dec6ef; font-size: .875rem; }
+.update-tools summary { cursor: pointer; padding-block: 4px; }
+.update-tools button { margin-top: 5px; }
+#updateCheckStatus { margin: 6px 0; color: inherit; line-height: 1.35; }
 .history-actions button { border-color: #76548a; justify-content: center; }
 .page-tile { position: relative; border-radius: 9px; }
 .page-tile .thumb { width: 100%; }
@@ -166,6 +170,7 @@ main { overflow: hidden; }
   nav button { white-space: nowrap; width: auto; }
   .history-actions { flex: none; }
   .source-link { margin: 0 7px; }
+  .update-tools { flex: none; margin: 0 7px; }
   .viewer-bar { gap: 3px; }
 }
 @media (max-height: 430px) {

@@ -1087,25 +1087,48 @@ function updateMessage(message, percent = null) {
   if (percent !== null) updateProgress.value = percent;
 }
 
-async function loadUpdateOffer() {
+async function loadUpdateOffer(manual = false) {
+  const status = get("updateCheckStatus");
+  const checkButton = get("checkUpdates");
+  if (manual) {
+    status.hidden = false;
+    status.textContent = "Güncellemeler denetleniyor…";
+    checkButton.disabled = true;
+  }
   try {
-    const response = await fetch("/update");
-    if (!response.ok) return;
-    const {available, installable} = await response.json();
-    if (!available) return;
+    const request = await fetch("/update/check", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({force: manual})});
+    if (!request.ok) throw new Error();
+    let result;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      const response = await fetch("/update");
+      if (!response.ok) throw new Error();
+      result = await response.json();
+      if (result.check !== "checking") break;
+      await new Promise(resolve => setTimeout(resolve, 450));
+    }
+    if (result.check !== "ready") throw new Error();
+    const {available, installable} = result;
     offeredUpdate = available;
-    const canInstall = installable && Boolean(available.sha256);
+    const canInstall = installable && Boolean(available?.sha256);
     const link = get("updateLink");
-    link.href = available.url;
-    link.textContent = `Yeni sürüm · ${available.version}`;
-    link.hidden = canInstall;
     const button = get("updateButton");
-    button.textContent = `Güncelle · ${available.version}`;
+    link.hidden = !available || canInstall;
     button.hidden = !canInstall;
+    if (available) {
+      link.href = available.url;
+      link.textContent = `Yeni sürüm · ${available.version}`;
+      button.textContent = `Güncelle · ${available.version}`;
+    }
+    if (manual) status.textContent = available ? `Yeni sürüm bulundu · ${available.version}` : "TugbayReader güncel.";
   } catch {
-    // Keep the editor available offline.
+    if (manual) status.textContent = "GitHub’a ulaşılamadı. Tekrar dene.";
+  } finally {
+    if (manual) checkButton.disabled = false;
   }
 }
+
+get("checkUpdates").onclick = () => loadUpdateOffer(true);
 
 async function watchInstallation() {
   for (;;) {
