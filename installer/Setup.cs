@@ -58,7 +58,7 @@ static class Setup
                 Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             string menu = testing ? Path.Combine(testRoot, "StartMenu") :
                 Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-            string install = Path.Combine(programs, "14.1.8");
+            string install = Path.Combine(programs, "14.1.9");
             string runtime = Path.Combine(install, "runtime", "pythonw.exe");
             string app = Path.Combine(install, "app.py");
             string icon = Path.Combine(install, "TugbayReader.ico");

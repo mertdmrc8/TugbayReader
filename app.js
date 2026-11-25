@@ -1225,6 +1225,30 @@ async function loadUpdateOffer(manual = false) {
 
 get("checkUpdates").onclick = () => loadUpdateOffer(true);
 
+const themeChoice = get("themeChoice");
+const themeStatus = get("themeStatus");
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeChoice.value = theme;
+}
+
+themeChoice.onchange = async () => {
+  const theme = themeChoice.value;
+  applyTheme(theme);
+  themeChoice.disabled = true;
+  themeStatus.hidden = true;
+  try {
+    const response = await fetch("/theme", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({theme})});
+    if (!response.ok) throw new Error();
+  } catch {
+    themeStatus.textContent = "Tema kaydedilemedi.";
+    themeStatus.hidden = false;
+  } finally {
+    themeChoice.disabled = false;
+  }
+};
+
 async function watchInstallation() {
   for (;;) {
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -1280,6 +1304,11 @@ if (location.protocol === "file:") {
   for (const element of document.body.children) element.hidden = true;
   get("launchHelp").hidden = false;
 } else {
+  fetch("/theme").then(response => response.json()).then(theme => {
+    if (!document.documentElement.dataset.theme && [...themeChoice.options].some(option => option.value === theme)) {
+      applyTheme(theme);
+    }
+  }).catch(() => {});
   fetch("/favorites").then(response => response.json()).then(items => {
     if (!favoritesSaving && Array.isArray(items)) {
       favorites = items;
