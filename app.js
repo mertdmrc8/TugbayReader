@@ -5,6 +5,8 @@ const modeButtons = [...document.querySelectorAll("[data-mode]")];
 const documentButtons = [...document.querySelectorAll("[data-document]")];
 const editorButtons = [...actionButtons, ...modeButtons, ...documentButtons, get("sign"), get("download")];
 const toolsPanel = get("toolsPanel");
+const thumbnailPanel = get("pages").parentElement;
+const thumbnailHeading = thumbnailPanel.querySelector("h2");
 const favoriteTools = new Map([...toolsPanel.querySelectorAll(".tool-group button")].map(button =>
   [button.id || button.dataset.action || button.dataset.mode, button]));
 const favoriteShortcuts = new Map();
@@ -166,11 +168,27 @@ function loadPage() {
   const frame = frames[page];
   frame.firstElementChild.id = "pageImage";
   frame.append(get("sheet"));
-  activeThumbnail?.removeAttribute("aria-current");
-  activeThumbnail = thumbnails[page];
-  activeThumbnail.setAttribute("aria-current", "page");
+  const thumbnail = thumbnails[page];
+  if (thumbnail !== activeThumbnail) {
+    activeThumbnail?.removeAttribute("aria-current");
+    activeThumbnail = thumbnail;
+    thumbnail.setAttribute("aria-current", "page");
+    showThumbnail(thumbnail);
+  }
   drawTargets();
   paintSearch();
+}
+
+function showThumbnail(thumbnail) {
+  const panel = thumbnailPanel.getBoundingClientRect();
+  const visibleTop = thumbnailHeading.getBoundingClientRect().bottom;
+  const visibleBottom = panel.top + thumbnailPanel.clientTop + thumbnailPanel.clientHeight;
+  const {top, bottom, height} = thumbnail.getBoundingClientRect();
+  if (top < visibleTop || height > visibleBottom - visibleTop) {
+    thumbnailPanel.scrollTop += top - visibleTop;
+  } else if (bottom > visibleBottom) {
+    thumbnailPanel.scrollTop += bottom - visibleBottom;
+  }
 }
 
 function navigate(index, offset = 0) {
